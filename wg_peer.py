@@ -5,21 +5,23 @@ import name_translation
 class WgPeer:
 
     def __init__(self, json):
+        self.online = None
+        self.rx = None
+        self.tx = None
+        self.connection_json = None
+
         self.json = json
 
         self.uuid = json["uuid"]
         self.enabled = json["enabled"] == "1"
-        self.online = json["peer-status"] == "online"
-        self.ifname = json["ifname"]
+        self.ifname = json["servers"]
+        self.naturalifname = json["%servers"]
         self.name = json["name"]
         self.pubkey = json["pubkey"]
 
         self.tunneladdress = json["tunneladdress"]
         self.serveraddress = json["serveraddress"]
         self.serverport = json["serverport"]
-
-        self.rx = json["transfer-rx"]
-        self.tx = json["transfer-tx"]
 
         try:
             country = self.name.split("-")[0]
@@ -39,30 +41,34 @@ class WgPeer:
             self.city = "Unknown"
             self.server = self.name
 
+    def add_connection_info(self, json):
+        self.connection_json = json
+        self.online = json["peer-status"] == "online" # ENABLED ONLY
+        self.rx = json["transfer-rx"] # ENABLED ONLY
+        self.tx = json["transfer-tx"] # ENABLED ONLY
+
     def is_target(self, target: str) -> bool:
-        return self.ifname == target
+        return self.uuid == target
 
-
-    def enable(self, session, randomize_port) -> bool:
-        if self.enabled:
-            return False
-
-        if randomize_port:
-            randomize_port(session, 1)
+    def get_human_info(self) -> str:
+        rx = self.rx
+        tx = self.tx
+        if self.rx > 1000*1000:
+            rx = f"{self.rx / 1000 / 1000}MB"
+        elif self.rx > 1000:
+            rx = f"{self.rx / 1000}KB"
         else:
-            session.post(f"{config.opnsense_api}/wireguard/client/toggleClient/{self.uuid}")
+            rx = f"{self.rx}B"
 
-        self.enabled = True
-        return True
+        if self.tx > 1000*1000:
+            tx = f"{self.tx / 1000 / 1000}MB"
+        elif self.tx > 1000:
+            tx = f"{self.tx / 1000}KB"
+        else:
+            tx = f"{self.tx}B"
 
-    def disable(self, session) -> bool:
-        if not self.enabled:
-            return False
+        return f"{self.name} ({self.country}, {self.city}) [{rx}/{tx}]"
 
-        session.post(f"{config.opnsense_api}/wireguard/client/toggleClient/{self.uuid}")
-
-        self.enabled = False
-        return True
 
     def randomize_port(self, session, enable: int):
 
@@ -85,4 +91,35 @@ class WgPeer:
 
         output = session.post(f"{config.opnsense_api}/wireguard/client/setClient/{self.uuid}", json=request_json, verify=False)
 
+        if config.debug:
+            print(output.content)
+
         self.serverport = new_port
+
+
+    def enable(self, session, random_port) -> bool:
+        if self.enabled:
+            print(f"[!] {self.name} is already enabled.")
+            return False
+
+        if random_port:
+            self.randomize_port(session, 1)
+        else:
+            output = session.post(f"{config.opnsense_api}/wireguard/client/toggleClient/{self.uuid}", verify=False)
+            if config.debug:
+                print(output.content)
+
+        self.enabled = True
+        return True
+
+    def disable(self, session) -> bool:
+        if not self.enabled:
+            print(f"[!] {self.name} is already disabled.")
+            return False
+
+        output = session.post(f"{config.opnsense_api}/wireguard/client/toggleClient/{self.uuid}", verify=False)
+        if config.debug:
+            print(output.content)
+
+        self.enabled = False
+        return True
