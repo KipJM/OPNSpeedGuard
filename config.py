@@ -1,5 +1,6 @@
 import json
 import random
+from operator import truediv
 
 
 def wait_for_user_input(name: str):
@@ -12,10 +13,10 @@ def wait_for_user_input(name: str):
             print(f"{name} [DISABLED]")
             return False
 
-def get_disable_first() -> bool:
+def get_do_disable_first() -> bool:
     return wait_for_user_input("Disable all peers first")
 
-def get_randomize() -> bool:
+def get_do_randomize() -> bool:
     return wait_for_user_input("Randomize ports")
 
 def get_peer_selection(length: int) -> int:
@@ -25,8 +26,21 @@ def get_peer_selection(length: int) -> int:
     else:
         return int(input("Select the target server [index]: ")) - 1  # Index starts at 1
 
-def get_auto_select() -> bool:
-    pass # TODO
+def get_do_speedtest() -> bool:
+    if automatic:
+        return True
+    else:
+        return wait_for_user_input("Use speedtest to automatically select server")
+
+
+def get_speedtest_threshold() -> int:
+    """
+    :returns in mbps.
+    """
+    return speedtest_threshold
+
+def get_gateway_name() -> str:
+    return gateway_name
 
 
 with open("config.json", "r+") as f:
@@ -40,7 +54,10 @@ with open("config.json", "r+") as f:
             "opnsense_api": "[CHANGE ME] https://192.168.1.1/api",
             "api_file": "api_key.txt",
             "debug": False,
-            "automatic": False
+            "automatic": False,
+            "speedtest_threshold": 25,
+            "speedtest_maxtries": 5,
+            "gateway_name": "", #OPTIONAL
         }
         with open("config.json", "w+") as f2:
             # load default values
@@ -53,13 +70,17 @@ randomize_port_range = data["randomize_port_range"]  # Mullvad allowed port rang
 instance_UUID = data["instance_UUID"]
 opnsense_api = data["opnsense_api"]
 api_file = data["api_file"]
+speedtest_threshold = data["speedtest_threshold"]  # MB
+speedtest_maxtries = data["speedtest_maxtries"]
 
 try:
     debug = data["debug"]
     automatic = data["automatic"]
+    gateway_name = data["gateway_name"]
 except KeyError:
     debug = False
     automatic = False
+    gateway_name = ""
 
 # Read api key
 try:

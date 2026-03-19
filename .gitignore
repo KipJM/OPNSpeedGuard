@@ -1,3 +1,4 @@
 api_key.txt
 config.json
+./config.json
 .venv/

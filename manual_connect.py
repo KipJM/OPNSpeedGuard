@@ -33,8 +33,8 @@ ifname = "" # ifname will be automatically found via searchClient
 # == USER CONFIG ==
 print("== == ==")
 
-disable_first = config.get_disable_first()
-randomize = config.get_randomize()
+disable_first = config.get_do_disable_first()
+randomize = config.get_do_randomize()
 
 print("== == ==")
 if not config.wait_for_user_input("Start"):
