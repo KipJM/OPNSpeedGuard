@@ -1,21 +1,21 @@
+import random
+from logging import INFO
+from typing import List
 import config
 import wg_peer
+from wg_peer import WgPeer, connect_only_to
 
 # ==CODE==#
 import typing
-import sys
 import requests
-import time
 
 import urllib3
-
-from wg_peer import WgPeer
 
 urllib3.disable_warnings()  # Suppress Insecure HTTPS warnings
 
 print("==API==")
-print(f"key: {config.api_key}")
-print(f"secret: {config.api_secret}")
+# print(f"key: {config.api_key}") # hidden for privacy
+# print(f"secret: {config.api_secret}") # hidden for privacy
 print(f"Going to {config.opnsense_api}")
 
 # API
@@ -35,6 +35,9 @@ except Exception as e:
 
 ifname = ""  # ifname will be automatically found via searchClient
 
+print("=== === OPNSpeedGuard === ===")
+if config.automatic:
+    print("[INFO] RUNNING IN AUTOMATIC MODE. ALL USER INPUT WILL BE EMULATED.")
 # == USER CONFIG ==
 print("== == ==")
 
@@ -42,11 +45,12 @@ disable_first = config.get_do_disable_first()
 randomize = config.get_do_randomize()
 
 print("== == ==")
-if not config.wait_for_user_input("Start"):
+if not config.wait_for_user_start():
     exit()
 
 print("=== START ===")
-peers: typing.Dict[str, wg_peer.WgPeer] = {}
+peers: typing.Dict[str, WgPeer] = {}
+
 
 # === Find all peers ===
 
@@ -69,41 +73,38 @@ for peer_js in output_json["rows"]:
     peer = WgPeer(peer_js)
     peers[peer.pubkey] = peer
 
+
 # === DISABLE ===
 
+# TODO: This is not actually required anymore I think...
 if disable_first:
     print("=== DISABLING PEERS... ===")
 
     enabled_peers = [peer for peer in peers.values() if peer.enabled]
     for idx, peer in enumerate(enabled_peers):
-        print(f"Disabling {peer.name} ({int((idx + 1) / len(enabled_peers) * 100)}%)...")
+        if config.verbose:
+            print(f"Disabling {peer.name} ({int((idx + 1) / len(enabled_peers) * 100)}%)...")
         peer.disable(session)
 
     print("---")
     print("Applying...")
-    output = session.post(f"{config.opnsense_api}/wireguard/service/reconfigure", verify=False)
-    print(output.content)
+    wg_peer.wg_apply(session)
 
-    print("Waiting 1 second before checking status...")
-    time.sleep(1)
 
 # === ENABLE ===
 
 print("=== ENABLING PEERS... ===")
 
-disabled_peers = [peer for peer in peers.values() if not peer.enabled]
-
-for idx, peer in enumerate(disabled_peers):
-    print(f"Enabling {peer.name} ({int((idx + 1) / len(disabled_peers) * 100)}%)...")
+for idx, peer in enumerate(peers.values()):
+    if config.verbose:
+        print(f"Enabling {peer.name} ({int((idx + 1) / len(peers) * 100)}%)...")
     peer.enable(session, randomize)
+
 
 print("---")
 print("Applying...")
-output = session.post(f"{config.opnsense_api}/wireguard/service/reconfigure", verify=False)
-print(output.content)
+wg_peer.wg_apply(session)
 
-print("Waiting 1 second before checking status...")
-time.sleep(1)
 
 # === INFO ===
 
@@ -138,45 +139,134 @@ for item in status_json["rows"]:
 selection_idx = config.get_peer_selection(len(candidates))
 selected_peer = candidates[selection_idx]
 
-print(f"Selected [{selection_idx + 1}]{selected_peer.name}")
+print(f"Selected [{selection_idx + 1}] {selected_peer.name}")
 
 # === CONNECT ===
 # Disconnect all but selection
 
 print(f"=== Disconnecting all but {selected_peer.name}... ===")
 
-for peer in peers.values():
-    peer.disable(session)
-
-selected_peer.enable(session, False)
+connect_only_to(session, peers.values(), selected_peer)
 
 print("---")
 print("Applying...")
-output = session.post(f"{config.opnsense_api}/wireguard/service/reconfigure", verify=False)
-print(output.content)
+wg_peer.wg_apply(session)
 
-print("Waiting 1 second before checking status...")
-time.sleep(1)
 
 # === SPEEDTEST ===
 
 print("=== Speedtest autoconnect? (Optional) ===")
 if config.get_do_speedtest():
+
     # == DO SPEEDTEST ==
-    pass # TODO
+    import speedtest_utils
+
+    speed_satisfied = False
+    speedtest_candidates: List[WgPeer] = []
+
+    # Test original one first.
+    speedtest_current_candidate = selected_peer
+
+    print(f"Testing {speedtest_current_candidate.name}...")
+    speed = speedtest_utils.speedtest()
+    print(f"{speedtest_current_candidate.name} (Down): {speedtest_utils.format_bps(speed)}")
+    speedtest_current_candidate.set_speed(speed)
+
+    # Add candidate, remove from random selection
+    speedtest_candidates.append(speedtest_current_candidate)
+    candidates.remove(speedtest_current_candidate)
+
+    if speed > config.get_speedtest_threshold():
+        print("Speed threshold satisfied.")
+        speed_satisfied = True
+    else:
+        print("Speed threshold not satisfied. Testing another peer...")
+
+    random.shuffle(candidates)
+
+    # The logic here is kind of messy as the first (user-selected) peer has to be handled manually, but it also has to
+    # counted for candidate selection and best-effort connection if no peer can reach the threshold. Hopefully there are no bugs :/
+    # Also the peer enable states are juggled around since I don't want to waste API latency on redundant disabling/enabling peers, but it's kind of dangerous.
+    for i in range(1, config.speedtest_maxtries):
+        print("---")
+        if speed_satisfied: # Loop passthrough from selected peer above
+            break
+
+        if len(candidates) == 0:
+            # No more to find
+            print("[W] Out of peers to test.")
+            break
+
+        # New peer
+        speedtest_current_candidate = candidates.pop(0)
+        speedtest_candidates.append(speedtest_current_candidate)
+
+        print(f"Speedtest candidate #{i}/{config.speedtest_maxtries}: {speedtest_current_candidate.name}")
+        connect_only_to(session, peers.values(), speedtest_current_candidate)
+
+        # Speedtest
+        print(f"Testing {speedtest_current_candidate.name}...")
+        speed = speedtest_utils.speedtest()
+        print(f"{speedtest_current_candidate.name} (Down: {speedtest_utils.format_bps(speed)}, Ping: {speedtest_utils.sp_client.results.ping})")
+        speedtest_current_candidate.set_speed(speed)
+
+        if speed > config.get_speedtest_threshold():
+            print("Speed threshold satisfied.")
+            speed_satisfied = True
+            break
+        else:
+            print("Speed threshold not satisfied. Testing another peer...")
+
+
+    if not speed_satisfied:
+        # All peers failed speed threshold. Go to fastest instead.
+        print("Max tries reached / Out of peers. Connecting to best-effort fastest peer.")
+
+    # Connect to the fastest peer.
+    # Yes this is unnecessary for most situations, but I don't trust my coding enough plus code is cleaner this way sooo....
+    fastest_peer = sorted(speedtest_candidates, key=lambda p1: p1.rx_speed, reverse=True)[0]
+
+    print(f"Connecting to {fastest_peer.name} (Down: {speedtest_utils.format_bps(fastest_peer.rx_speed)})...")
+    connect_only_to(session, peers.values(), fastest_peer)
+
+    print("---")
+    print("Applying...")
+    wg_peer.wg_apply(session)
 
 
 # === FINAL APPLY ===
 print ("=== Final apply... ===")
-
+# These are probably unnecessary, but they seem to fix some monitoring bugs so I kept them.
 print("Restarting WireGuard...")
 output = session.post(f"{config.opnsense_api}/core/service/restart/wireguard/{config.instance_UUID}", verify=False)
-print(output.content)
+if config.debug:
+    print(output.content)
 
 if config.get_gateway_name() != "":
     print("Resetting Gateway watcher...")
     output = session.post(f"{config.opnsense_api}/core/service/restart/dpinger/{config.get_gateway_name()}", verify=False)
-    print(output.content)
+    if config.debug:
+        print(output.content)
 
+print()
 print("============")
 print("DONE!")
+print()
+print("-- SUMMARY ---------------------------------")
+print(f"AUTOMATIC:\t{config.automatic}")
+
+try:
+    # noinspection PyStatementEffect
+    speedtest_candidates # Test existence
+    print("CONNECTION TYPE:\tSpeedtest")
+    print("-------------------------------------------")
+    print(f"SEL\tINFO\t\t\t\t\t\t\t\t\t\t\t\tBANDWIDTH")
+    for o in speedtest_candidates:
+        if o == fastest_peer:
+            print(f"[*]\t{o.get_human_info()}\t{speedtest_utils.format_bps(o.rx_speed)}")
+        else:
+            print(f"[ ]\t{o.get_human_info()}\t{speedtest_utils.format_bps(o.rx_speed)}")
+except NameError:
+    print("CONNECTION TYPE:\tManual")
+    print(f"== CONNECTION INFO ==")
+    print(selected_peer.get_human_info())
