@@ -82,10 +82,10 @@ def genconfig(location:str) -> None:
 
 
 
-with open("config.json", "r+") as f:
+with open("config.json", "r") as f:
     data = json.load(f)
     if data == {}:
-        print("[ERR] CONFIG FILE DOES NOT EXIST/EMPTY. Generate a template config using: opnspeedguard genconfig --config=(where to put the file)")
+        print("[ERR] CONFIG FILE DOES NOT EXIST/EMPTY. Generate a template config using: opnspeedguard --genconfig --config=(where to output the file)")
         exit(-1)
 
 

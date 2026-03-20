@@ -9,6 +9,8 @@ import time
 import urllib3
 urllib3.disable_warnings() # Suppress Insecure HTTPS warnings
 
+print("THIS SCRIPT IS ONLY FOR REFERENCE. USE AUTO_CONNECT INSTEAD. THIS SCRIPT WILL BREAK.")
+
 print("==API==")
 print(f"key: {config.api_key}")
 print(f"secret: {config.api_secret}")
