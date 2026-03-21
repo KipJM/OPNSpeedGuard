@@ -2,8 +2,8 @@ import random
 import time
 from typing import Iterable
 
-import config
-import name_translation
+from . import config
+from . import name_translation
 
 class WgPeer:
 

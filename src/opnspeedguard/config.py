@@ -2,7 +2,6 @@ import json
 import random
 from operator import truediv
 
-
 def wait_for_user_input(name: str):
     while True:
         user_input = input(f"[?] {name}? (Y/N): ")
@@ -60,17 +59,17 @@ def get_gateway_name() -> str:
 
 def genconfig(location:str) -> None:
     data = {
-        "keepalive_interval": 25,
-        "randomize_port_range": [[53, 53], [123, 123], [443, 443], [4000, 33433], [33565, 51820], [52001, 60000]],
-        "instance_UUID": "[CHANGE ME]",
+        "keepalive_interval": 25, # The keepalive_interval of your peers. There's no good way of retrieving this info from OPNSense last time I checked.
+        "randomize_port_range": [[53, 53], [123, 123], [443, 443], [4000, 33433], [33565, 51820], [52001, 60000]], # Preset ranges for Mullvad. Inclusive.
+        "instance_UUID": "[CHANGE ME]", # Find it via https://github.com/KipJM/OpnsenseMullvadPeerAdder/blob/master/config_and_run_me_first.py
         "opnsense_api": "[CHANGE ME, EXAMPLE: https://192.168.1.1/api]",
         "api_file": "api_key.txt",
-        "debug": False,  # OPTIONAL
-        "automatic": False,  # OPTIONAL
-        "speedtest_threshold": 25,  # in mbps
-        "speedtest_maxtries": 5,
-        "gateway_name": "",  # OPTIONAL
-        "do_randomize": False,  # OPTIONAL
+        "debug": False,  # OPTIONAL. Shows debug info. Does not impact functionality.
+        "automatic": False,  # OPTIONAL. Override all user input will preset values above.
+        "speedtest_threshold": 25,  # in mbps. Once a peer reached at least this bandwidth the tool will stop searching any further
+        "speedtest_maxtries": 5, # Max number of different peers to try before giving up.
+        "gateway_name": "",  # OPTIONAL. Will attempt to reset the gateway watcher for this to remove the orange dot on the dashboard.
+        "do_randomize": False,  # OPTIONAL. Randomize ports of all peers
         "verbose": False
     }
     with open(location, "w+") as f2:
@@ -80,12 +79,13 @@ def genconfig(location:str) -> None:
     print(f"sample json generated at {location}. You need to modify some of its values.")
 
 
+# = MAIN ===
+from . import cli_config
 
-
-with open("config.json", "r") as f:
+with open(cli_config.config_path, "r") as f:
     data = json.load(f)
     if data == {}:
-        print("[ERR] CONFIG FILE DOES NOT EXIST/EMPTY. Generate a template config using: opnspeedguard --genconfig --config=(where to output the file)")
+        print("[ERR] CONFIG FILE DOES NOT EXIST/EMPTY. Generate a template config using: opnspeedguard --genconfig --config (where to output the file)")
         exit(-1)
 
 
@@ -93,7 +93,6 @@ keepalive_interval = data["keepalive_interval"]  # Default: 25
 randomize_port_range = data["randomize_port_range"]  # Mullvad allowed port ranges. You can remove any undesired port range here.
 instance_UUID = data["instance_UUID"]
 opnsense_api = data["opnsense_api"]
-api_file = data["api_file"]
 speedtest_threshold = data["speedtest_threshold"]  # MB
 speedtest_maxtries = data["speedtest_maxtries"]
 
@@ -106,7 +105,7 @@ verbose = data.get("verbose", False)
 
 # Read api key
 try:
-    with open(api_file) as f:
+    with open(cli_config.api_path) as f:
         api_key = f.readline().strip().removeprefix("key=")
         api_secret = f.readline().strip().removeprefix("secret=")
 except FileNotFoundError:

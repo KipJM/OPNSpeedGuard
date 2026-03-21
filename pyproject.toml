@@ -1,0 +1,35 @@
+[project]
+name = "opnspeedguard"
+version = "1.0.0"
+authors = [
+  { name="KIP", email="kip@kip.gay" },
+]
+description = "A tool that automatically makes an OPNSense firewall's WireGuard daemon switch to another server(peer) with a good bandwidth, for use in a road warrior setup."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "GPL-3.0-or-later"
+license-files = ["LICEN[CS]E*"]
+dependencies = [
+    "requests",
+    "speedtest-cli",
+    "urllib3"
+]
+
+[project.urls]
+Homepage = "https://github.com/KipJM/OPNSpeedGuard"
+Issues = "https://github.com/KipJM/OPNSpeedGuard/issues"
+
+
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+opnspeedguard = "opnspeedguard.cli:run"
+
+[project.entry-points."pipx.run"]
+opnspeedguard = "opnspeedguard.cli:run "

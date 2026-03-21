@@ -1,11 +1,10 @@
-# Packaged, to be called via opnspeedguard.py cli interface
+# Packaged, to be called via cli.py cli interface
 def auto_connect() -> None:
     import random
-    from logging import INFO
     from typing import List
-    import config
-    import wg_peer
-    from wg_peer import WgPeer, connect_only_to
+    from . import config
+    from . import wg_peer
+    from .wg_peer import WgPeer, connect_only_to
 
     # ==CODE==#
     import typing
@@ -161,7 +160,7 @@ def auto_connect() -> None:
     if config.get_do_speedtest():
 
         # == DO SPEEDTEST ==
-        import speedtest_utils
+        from . import speedtest_utils
 
         speed_satisfied = False
         speedtest_candidates: List[WgPeer] = []

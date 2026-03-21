@@ -2,3 +2,6 @@ api_key.txt
 config.json
 ./config.json
 .venv/
+manual_connect.py
+speedtest_test.py
+/.ignoreme/

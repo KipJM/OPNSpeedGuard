@@ -1,4 +1,4 @@
-import config
+from . import config
 
 print ("Creating speedtest client")
 import speedtest
