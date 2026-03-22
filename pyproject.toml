@@ -1,6 +1,6 @@
 [project]
 name = "opnspeedguard"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
   { name="KIP", email="kip@kip.gay" },
 ]

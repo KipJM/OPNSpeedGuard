@@ -33,7 +33,7 @@ def run():
             genconfig_location = "config.json"
             print(f"Generating template config file to {os.getcwd()}...")
 
-        from config import genconfig
+        from .config import genconfig
         genconfig(genconfig_location)
         exit(2)
 

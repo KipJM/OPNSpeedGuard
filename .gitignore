@@ -5,3 +5,4 @@ config.json
 manual_connect.py
 speedtest_test.py
 /.ignoreme/
+/.idea/

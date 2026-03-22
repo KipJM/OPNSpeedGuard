@@ -1,6 +1,5 @@
 import json
 import random
-from operator import truediv
 
 def wait_for_user_input(name: str):
     while True:
