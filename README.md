@@ -4,6 +4,7 @@ switch to another server(peer) with a good bandwidth, for use in a
 [road warrior setup](https://docs.opnsense.org/manual/how-tos/wireguard-client.html) in situations where WireGuard connectivity might be unstable.
 
 This tool automatically makes OPNSense connect to a reachable peer with good internet bandwidth, similar to how "auto location" works in a consumer VPN app.
+> Disclaimer: This tool will not and can not circumvent network restrictions. It's merely for managing the WireGuard daemon on an OPNSense firewall. Do with this information what you will.
 
 # Demo
 
