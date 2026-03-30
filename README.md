@@ -2,13 +2,15 @@
 A tool that automatically makes an [OPNSense](https://opnsense.org/) firewall's WireGuard daemon
 switch to another server(peer) with a good bandwidth, for use in a 
 [road warrior setup](https://docs.opnsense.org/manual/how-tos/wireguard-client.html) in situations where WireGuard connectivity might be unstable.
+<img width="2239" height="477" alt="image" src="https://github.com/user-attachments/assets/1c91ec88-6c5d-4be8-9e1d-7a9f732bdb35" />
 
 This tool automatically makes OPNSense connect to a reachable peer with good internet bandwidth, similar to how "auto location" works in a consumer VPN app.
 > Disclaimer: This tool will not and can not circumvent network restrictions. It's merely for managing the WireGuard daemon on an OPNSense firewall. Do with this information what you will.
 
 # Demo
 
-Watch a video demo of this tool on YouTube: [LINK](https://www.youtube.com/watch?v=QV3KI8_WcJI)
+### Short demo of this tool: [Youtube Video](https://www.youtube.com/watch?v=QV3KI8_WcJI)
+### Installation, setup, and a full manual run with debug mode turned on: [Youtube Video](https://www.youtube.com/watch?v=OmvgO1MNlaU)
 
 # Install
 Install it as a [python package on PyPI](https://pypi.org/project/opnspeedguard), via the CLI:
